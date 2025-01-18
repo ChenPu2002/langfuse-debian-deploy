@@ -1,10 +1,14 @@
-FROM --platform=${TARGETPLATFORM:-linux/amd64} node:20-alpine3.20 AS alpine
+FROM --platform=${TARGETPLATFORM:-linux/amd64} node:20-slim AS debian
 
 # It's important to update the index before installing packages to ensure you're getting the latest versions.
 # Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
-RUN apk update && apk upgrade --no-cache libcrypto3 libssl3 libc6-compat busybox ssl_client
+# RUN apk update && apk upgrade --no-cache libcrypto3 libssl3 libc6-compat busybox ssl_client
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libssl-dev libc6-dev busybox && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-FROM --platform=${TARGETPLATFORM:-linux/amd64} alpine AS base
+FROM --platform=${TARGETPLATFORM:-linux/amd64} debian AS base
 RUN npm install turbo@^1.13.4 --global
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
@@ -106,7 +110,11 @@ ENV DOCKER_BUILD 0
 # Set NEXT_MANUAL_SIG_HANDLE for runtime
 ENV NEXT_MANUAL_SIG_HANDLE true
 
-RUN apk add --no-cache dumb-init tzdata
+# RUN apk add --no-cache dumb-init tzdata
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends dumb-init tzdata wget tar && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
@@ -114,7 +122,7 @@ RUN adduser --system --uid 1001 nextjs
 RUN npm install -g --no-package-lock --no-save prisma@5.22.0
 
 RUN MIGRATE_TARGET_ARCH=$(echo ${TARGETPLATFORM:-linux/amd64} | sed 's/\//-/g') && \
-    wget -q -O- https://github.com/golang-migrate/migrate/releases/download/v4.18.0/migrate.$MIGRATE_TARGET_ARCH.tar.gz | tar xvz && \
+    wget --no-cache --no-check-certificate -q -O- https://github.com/golang-migrate/migrate/releases/download/v4.18.0/migrate.$MIGRATE_TARGET_ARCH.tar.gz | tar xvz && \
     mv migrate /usr/bin/migrate
 
 COPY --from=builder --chown=nextjs:nodejs /app/web/next.config.mjs .

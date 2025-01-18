@@ -1,11 +1,15 @@
-FROM --platform=${TARGETPLATFORM:-linux/amd64} node:20-alpine3.20 AS alpine
+FROM --platform=${TARGETPLATFORM:-linux/amd64} node:20-slim AS debian
 
 # It's important to update the index before installing packages to ensure you're getting the latest versions.
 # Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
-RUN apk update && apk upgrade --no-cache libcrypto3 libssl3 libc6-compat busybox ssl_client
+# RUN apk update && apk upgrade --no-cache libcrypto3 libssl3 libc6-compat busybox ssl_client
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libssl-dev libc6-dev busybox && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 
-FROM --platform=${TARGETPLATFORM:-linux/amd64} alpine AS base
+FROM --platform=${TARGETPLATFORM:-linux/amd64} debian AS base
 RUN npm install turbo@^1.13.4 --global
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
@@ -50,7 +54,11 @@ FROM --platform=${TARGETPLATFORM:-linux/amd64} base AS runner
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 
-RUN apk add --no-cache dumb-init
+# RUN apk add --no-cache dumb-init
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends dumb-init && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

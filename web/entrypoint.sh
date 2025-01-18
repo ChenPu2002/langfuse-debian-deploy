@@ -45,7 +45,8 @@ fi
 if [ "$LANGFUSE_AUTO_CLICKHOUSE_MIGRATION_DISABLED" != "true" ]; then
     # Apply Clickhouse migrations
     cd ./packages/shared
-    sh ./clickhouse/scripts/up.sh
+    chmod +x ./clickhouse/scripts/up.sh
+    ./clickhouse/scripts/up.sh
     status=$?
     cd ../../
 fi
